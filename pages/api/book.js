@@ -37,10 +37,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { name, phone, consent, startTime, ref } = req.body || {};
+  const { name, phone, consent, startTime, ref, refName } = req.body || {};
 
   if (!name || !phone || !startTime) {
     return res.status(400).json({ error: "Missing name, phone, or startTime" });
+  }
+  if (!consent) {
+    return res.status(400).json({ error: "Consent to text messages is required" });
   }
 
   const locationId = process.env.GLM_LOCATION_ID;
@@ -54,32 +57,14 @@ export default async function handler(req, res) {
     });
     const friendContactId = friendUpsert.contact.id;
 
-    const consentTag = consent ? "sms-opted-in" : "sms-not-opted-in";
-    const oppositeConsentTag = consent ? "sms-not-opted-in" : "sms-opted-in";
-    await glmFetch(`/contacts/${friendContactId}/tags`, {
-      method: "DELETE",
-      body: JSON.stringify({ tags: [oppositeConsentTag] }),
-    });
     await glmFetch(`/contacts/${friendContactId}/tags`, {
       method: "POST",
-      body: JSON.stringify({ tags: [consentTag] }),
+      body: JSON.stringify({ tags: ["Referral-Lead"] }),
     });
 
-    if (ref) {
-      const referrerUpsert = await glmFetch("/contacts/upsert", {
-        method: "POST",
-        body: JSON.stringify({ locationId, phone: ref }),
-      });
-      const referrerContactId = referrerUpsert.contact.id;
-      await glmFetch(`/contacts/${referrerContactId}/tags`, {
-        method: "POST",
-        body: JSON.stringify({ tags: ["referred-a-friend"] }),
-      });
-    }
-
-    let appointment;
+    let friendAppointment;
     try {
-      appointment = await glmFetch("/calendars/events/appointments", {
+      friendAppointment = await glmFetch("/calendars/events/appointments", {
         method: "POST",
         body: JSON.stringify({
           calendarId,
@@ -100,7 +85,42 @@ export default async function handler(req, res) {
       throw err;
     }
 
-    return res.status(200).json({ ok: true, appointment });
+    let referrerAppointment = null;
+    if (ref) {
+      const { firstName: refFirstName, lastName: refLastName } = splitName(refName || "");
+      const referrerUpsert = await glmFetch("/contacts/upsert", {
+        method: "POST",
+        body: JSON.stringify({
+          locationId,
+          phone: ref,
+          firstName: refFirstName,
+          lastName: refLastName,
+        }),
+      });
+      const referrerContactId = referrerUpsert.contact.id;
+      await glmFetch(`/contacts/${referrerContactId}/tags`, {
+        method: "POST",
+        body: JSON.stringify({ tags: ["Referral-Client"] }),
+      });
+
+      try {
+        referrerAppointment = await glmFetch("/calendars/events/appointments", {
+          method: "POST",
+          body: JSON.stringify({
+            calendarId,
+            locationId,
+            contactId: referrerContactId,
+            startTime,
+            title: `Referral Intro Session - ${refName || "Referring member"} (bringing a friend)`,
+            appointmentStatus: "confirmed",
+          }),
+        });
+      } catch (err) {
+        referrerAppointment = { error: err.message, details: err.details };
+      }
+    }
+
+    return res.status(200).json({ ok: true, friendAppointment, referrerAppointment });
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message, details: err.details });
   }

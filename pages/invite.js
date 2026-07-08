@@ -17,6 +17,7 @@ function slotFromIso(iso) {
 export default function FriendPage() {
   const [slots, setSlots] = useState([]);
   const [ref, setRef] = useState("");
+  const [refName, setRefName] = useState("");
   const [linkChecked, setLinkChecked] = useState(false);
 
   const [selectedSlotId, setSelectedSlotId] = useState(null);
@@ -33,6 +34,7 @@ export default function FriendPage() {
     const resolved = slotIds.map(slotFromIso).filter(Boolean);
     setSlots(resolved);
     setRef(params.get("ref") || "");
+    setRefName(params.get("refName") || "");
     setLinkChecked(true);
   }, []);
 
@@ -49,6 +51,7 @@ export default function FriendPage() {
           consent,
           startTime: selectedSlotId,
           ref,
+          refName,
         }),
       });
       const data = await res.json();
@@ -68,7 +71,9 @@ export default function FriendPage() {
     }
   }
 
-  const canSubmit = Boolean(selectedSlotId && name.trim() && phone.trim() && !submitting);
+  const canSubmit = Boolean(
+    selectedSlotId && name.trim() && phone.trim() && consent && !submitting
+  );
 
   if (!linkChecked) return null;
 
@@ -149,7 +154,11 @@ export default function FriendPage() {
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
             />
-            <label htmlFor="consent">Text me about my session</label>
+            <label htmlFor="consent">
+              I agree to receive marketing messages from Kova Fitness at the
+              phone number provided above. Message frequency may vary and
+              data rates may apply. Reply STOP to opt out.
+            </label>
           </div>
         </>
       )}

@@ -4,6 +4,7 @@ import { formatDateLabel, todayStr, addDays } from "../lib/dateUtils";
 export default function SarahPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedSlots, setSelectedSlots] = useState([]);
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
   const [daySlots, setDaySlots] = useState([]);
@@ -59,17 +60,17 @@ export default function SarahPage() {
   }
 
   const smsHref = useMemo(() => {
-    if (selectedSlots.length === 0 || !phone) return null;
+    if (selectedSlots.length === 0 || !name || !phone) return null;
     const slotIds = selectedSlots.map((s) => s.id).join(",");
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const inviteUrl = `${origin}/invite?slots=${encodeURIComponent(
       slotIds
-    )}&ref=${encodeURIComponent(phone)}`;
+    )}&ref=${encodeURIComponent(phone)}&refName=${encodeURIComponent(name)}`;
     const body =
       `Hey! My gym gave me an opportunity to have you come in and try a session with me. ` +
       `I've already selected some times that will work for me. check out this link to see if these will work for you: ${inviteUrl}`;
     return `sms:?body=${encodeURIComponent(body)}`;
-  }, [selectedSlots, phone]);
+  }, [selectedSlots, name, phone]);
 
   return (
     <div className="page">
@@ -140,6 +141,15 @@ export default function SarahPage() {
 
       {selectedSlots.length > 0 && (
         <>
+          <label htmlFor="name">Your name</label>
+          <input
+            id="name"
+            type="text"
+            placeholder="Jane Smith"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
           <label htmlFor="phone">Your phone number</label>
           <input
             id="phone"
