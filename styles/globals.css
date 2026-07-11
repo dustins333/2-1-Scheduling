@@ -26,6 +26,13 @@ body {
   min-height: 100vh;
 }
 
+.logo {
+  display: block;
+  height: 56px;
+  width: auto;
+  margin: 0 0 16px;
+}
+
 h1 {
   font-family: "Protest Strike", sans-serif;
   font-weight: 400;
@@ -86,6 +93,91 @@ label {
   font-weight: 400;
   font-size: 18px;
   color: var(--text);
+}
+
+.calendar {
+  margin-bottom: 20px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calendar-month-label {
+  flex: 1;
+  text-align: center;
+  font-family: "Protest Strike", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 6px;
+}
+
+.calendar-weekdays span {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.calendar-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.calendar-cell.empty {
+  cursor: default;
+}
+
+.calendar-cell.past {
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.calendar-cell.selected {
+  background: var(--terracotta-dark);
+  color: white;
+  font-weight: 600;
+}
+
+.calendar-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--terracotta);
+}
+
+.calendar-cell.selected .calendar-dot {
+  background: white;
 }
 
 input[type="date"],

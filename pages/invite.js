@@ -81,6 +81,7 @@ export default function FriendPage() {
     const slot = slots.find((s) => s.id === selectedSlotId);
     return (
       <div className="page">
+        <img src="/kova-logo.png" alt="Kova Strength" className="logo" />
         <div className="confirmation">
           <h2>You're booked!</h2>
           <p>
@@ -95,10 +96,11 @@ export default function FriendPage() {
 
   return (
     <div className="page">
+      <img src="/kova-logo.png" alt="Kova Strength" className="logo" />
       <h1>Grab a session time</h1>
       <p className="subtitle">
-        A friend picked out these times for a quick intro session at Kova. Pick
-        whichever works for you.
+        Your friend had the opportunity to invite someone in for a free
+        workout. Check out the times below and take advantage of this offer!
       </p>
 
       {slots.length === 0 ? (

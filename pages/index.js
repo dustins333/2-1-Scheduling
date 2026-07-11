@@ -1,8 +1,25 @@
 import { useState, useEffect, useMemo } from "react";
-import { formatDateLabel, todayStr, addDays } from "../lib/dateUtils";
+import {
+  formatDateLabel,
+  todayStr,
+  monthStr,
+  shiftMonth,
+  monthLabel,
+  getMonthGrid,
+} from "../lib/dateUtils";
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function SarahPage() {
-  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const today = todayStr();
+  const todayDate = new Date(today + "T00:00:00");
+
+  const [viewYear, setViewYear] = useState(todayDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(todayDate.getMonth() + 1);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [monthLoading, setMonthLoading] = useState(true);
+
+  const [selectedDate, setSelectedDate] = useState(today);
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -11,12 +28,40 @@ export default function SarahPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  function shiftDate(delta) {
-    setSelectedDate((current) => {
-      const next = addDays(current, delta);
-      return next < todayStr() ? current : next;
+  const isCurrentViewMonth =
+    viewYear === todayDate.getFullYear() && viewMonth === todayDate.getMonth() + 1;
+
+  function shiftView(delta) {
+    setViewYear((y) => {
+      const next = shiftMonth(y, viewMonth, delta);
+      if (next.year < todayDate.getFullYear() ||
+        (next.year === todayDate.getFullYear() && next.month < todayDate.getMonth() + 1)) {
+        return y;
+      }
+      setViewMonth(next.month);
+      return next.year;
     });
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    setMonthLoading(true);
+    fetch(`/api/slots?month=${monthStr(viewYear, viewMonth)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        setAvailableDates(data.availableDates || []);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableDates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMonthLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewYear, viewMonth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,59 +117,96 @@ export default function SarahPage() {
     return `sms:?body=${encodeURIComponent(body)}`;
   }, [selectedSlots, name, phone]);
 
+  const weeks = getMonthGrid(viewYear, viewMonth);
+
   return (
     <div className="page">
+      <img src="/kova-logo.png" alt="Kova Strength" className="logo" />
       <h1>Pick a few times for a friend</h1>
       <p className="subtitle">
         Choose a day, tap 2-3 times that could work, then send it to a friend.
       </p>
 
       <label>Pick a day</label>
-      <div className="day-nav">
-        <button
-          type="button"
-          className="day-nav-arrow"
-          onClick={() => shiftDate(-1)}
-          disabled={selectedDate <= todayStr()}
-          aria-label="Previous day"
-        >
-          &#8592;
-        </button>
-        <span className="day-nav-label">{formatDateLabel(selectedDate)}</span>
-        <button
-          type="button"
-          className="day-nav-arrow"
-          onClick={() => shiftDate(1)}
-          aria-label="Next day"
-        >
-          &#8594;
-        </button>
+      <div className="calendar">
+        <div className="calendar-header">
+          <button
+            type="button"
+            className="day-nav-arrow"
+            onClick={() => shiftView(-1)}
+            disabled={isCurrentViewMonth}
+            aria-label="Previous month"
+          >
+            &#8592;
+          </button>
+          <span className="calendar-month-label">{monthLabel(viewYear, viewMonth)}</span>
+          <button
+            type="button"
+            className="day-nav-arrow"
+            onClick={() => shiftView(1)}
+            aria-label="Next month"
+          >
+            &#8594;
+          </button>
+        </div>
+
+        <div className="calendar-weekdays">
+          {WEEKDAY_LABELS.map((w) => (
+            <span key={w}>{w}</span>
+          ))}
+        </div>
+
+        <div className="calendar-grid">
+          {weeks.map((week, i) => (
+            <div className="calendar-week" key={i}>
+              {week.map((cell, j) => {
+                if (!cell) return <span key={j} className="calendar-cell empty" />;
+                const isPast = cell.dateStr < today;
+                const isAvailable = availableDates.includes(cell.dateStr);
+                const isSelectedDay = cell.dateStr === selectedDate;
+                return (
+                  <button
+                    key={j}
+                    type="button"
+                    className={`calendar-cell${isSelectedDay ? " selected" : ""}${
+                      isPast ? " past" : ""
+                    }`}
+                    disabled={isPast}
+                    onClick={() => setSelectedDate(cell.dateStr)}
+                  >
+                    {cell.day}
+                    {isAvailable && !isPast && <span className="calendar-dot" />}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {selectedDate && (
-        <div className="slot-group">
-          {loading ? (
-            <p className="empty-state">Loading times...</p>
-          ) : error ? (
-            <p className="empty-state">{error}</p>
-          ) : daySlots.length === 0 ? (
-            <p className="empty-state">No open times this day. Try another day.</p>
-          ) : (
-            <div className="slot-grid">
-              {daySlots.map((slot) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  className={`slot-button${isSelected(slot.id) ? " selected" : ""}`}
-                  onClick={() => toggleSlot(slot)}
-                >
-                  {slot.time}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="slot-group">
+        <h3>{formatDateLabel(selectedDate)}</h3>
+        {loading ? (
+          <p className="empty-state">Loading times...</p>
+        ) : error ? (
+          <p className="empty-state">{error}</p>
+        ) : daySlots.length === 0 ? (
+          <p className="empty-state">No open times this day. Try another day.</p>
+        ) : (
+          <div className="slot-grid">
+            {daySlots.map((slot) => (
+              <button
+                key={slot.id}
+                type="button"
+                className={`slot-button${isSelected(slot.id) ? " selected" : ""}`}
+                onClick={() => toggleSlot(slot)}
+              >
+                {slot.time}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {selectedSlots.length > 0 && (
         <div className="selected-summary">
